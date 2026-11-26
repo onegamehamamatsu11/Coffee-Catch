@@ -27,10 +27,14 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
+      overscroll-behavior: none;
       background: #000;
     }
 
-    #unity-container {
+    /* Unity全体の表示領域 */
+    #unity-container,
+    #unity-container.unity-desktop,
+    #unity-container.unity-mobile {
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
@@ -44,7 +48,9 @@
       background: #000;
     }
 
-    #unity-fullscreen-container {
+    /* フルスクリーン領域 */
+    #unity-fullscreen-container,
+    .unity-mobile #unity-fullscreen-container {
       position: absolute !important;
       top: 0 !important;
       left: 0 !important;
@@ -57,7 +63,9 @@
       background: #000;
     }
 
-    #unity-canvas {
+    /* ゲーム画面 */
+    #unity-canvas,
+    #unity-canvas.unity-mobile {
       display: block !important;
       position: absolute !important;
       top: 0 !important;
@@ -71,33 +79,42 @@
       outline: none;
     }
 
+    /* 読み込み画面 */
     #unity-loading-container {
       position: absolute !important;
       inset: 0 !important;
-      display: flex;
+      width: 100% !important;
+      height: 100% !important;
+      display: none;
       align-items: center;
       justify-content: center;
       pointer-events: none;
       z-index: 10;
     }
 
+    /* ローディングバー */
     #unity-loading-bar {
       position: relative !important;
       top: auto !important;
       left: auto !important;
       transform: none !important;
+      display: block !important;
     }
 
+    /* 警告・エラー表示 */
     #unity-warning {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
+      position: absolute !important;
+      top: 10px !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
       z-index: 100;
       max-width: 90%;
       text-align: center;
+      overflow-wrap: anywhere;
+      display: none;
     }
 
+    /* フッター非表示 */
     #unity-footer {
       display: none !important;
     }
@@ -149,11 +166,11 @@
     const canvas =
       document.querySelector("#unity-canvas");
 
-    const fullscreenContainer =
-      document.querySelector("#unity-fullscreen-container");
-
     const unityContainer =
       document.querySelector("#unity-container");
+
+    const fullscreenContainer =
+      document.querySelector("#unity-fullscreen-container");
 
     const loadingContainer =
       document.querySelector("#unity-loading-container");
@@ -195,17 +212,21 @@
     }
 
 
-    // 画面回転・ブラウザサイズ変更に対応
+    // ブラウザサイズ変更
     window.addEventListener(
       "resize",
       resizeUnityGame
     );
 
+
+    // 画面回転
     window.addEventListener(
       "orientationchange",
       resizeUnityGame
     );
 
+
+    // スマホブラウザの表示領域変更
     if (window.visualViewport) {
 
       window.visualViewport.addEventListener(
@@ -218,7 +239,7 @@
     resizeUnityGame();
 
 
-    // Unity警告表示
+    // Unity警告・エラー表示
     function unityShowBanner(msg, type) {
 
       function updateBannerVisibility() {
@@ -263,10 +284,11 @@
       }
 
       updateBannerVisibility();
+
     }
 
 
-    // Unityビルド設定
+    // Unity WebGLビルド設定
     const buildUrl = "Build";
 
     const loaderUrl =
@@ -301,21 +323,32 @@
     };
 
 
-    // 描画解像度はUnity標準設定を使用
+    // 描画解像度はUnity標準設定を維持
     // devicePixelRatioの制限なし
     // matchWebGLToCanvasSizeの変更なし
 
 
-    // スマホ・iPadの判定
-    if (/iPhone|iPad|iPod|Android/i.test(
-      navigator.userAgent
-    )) {
+    // スマホ・タブレット判定
+    const isMobile =
+      /iPhone|iPad|iPod|Android/i.test(
+        navigator.userAgent
+      ) ||
+      (
+        navigator.platform === "MacIntel" &&
+        navigator.maxTouchPoints > 1
+      );
+
+    if (isMobile) {
 
       unityContainer.className = "unity-mobile";
 
       canvas.className = "unity-mobile";
 
     }
+
+
+    // 読み込み画面表示
+    loadingContainer.style.display = "flex";
 
 
     // Unity読み込み
@@ -333,18 +366,8 @@
 
         (progress) => {
 
-          if (progress < 1) {
-
-            loadingContainer.style.display = "flex";
-
-            progressBarFull.style.width =
-              (100 * progress) + "%";
-
-          } else {
-
-            loadingContainer.style.display = "none";
-
-          }
+          progressBarFull.style.width =
+            (100 * progress) + "%";
 
         }
 
@@ -374,6 +397,8 @@
 
       }).catch((message) => {
 
+        loadingContainer.style.display = "none";
+
         unityShowBanner(
           String(message),
           "error"
@@ -383,7 +408,11 @@
 
     };
 
+
+    // 読み込み失敗時
     script.onerror = () => {
+
+      loadingContainer.style.display = "none";
 
       unityShowBanner(
         "Unityの読み込みに失敗しました。",
